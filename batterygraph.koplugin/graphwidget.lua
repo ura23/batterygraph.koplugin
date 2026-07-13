@@ -14,16 +14,16 @@ local Font = require("ui/font")
 local _ = require("gettext")
 local Screen = Device.screen
 
--- КЕШУВАННЯ ФУНКЦІЙ ДЛЯ ПРИСКОРЕННЯ (Upvalues)
+-- CACHING FUNCTIONS FOR SPEED (Upvalues)
 local math_abs = math.abs
 local math_floor = math.floor
 local math_min = math.min
 local os_date = os.date
 
--- Статичні рівні сітки
+-- Static grid levels
 local PCT_LEVELS = {25, 50, 75, 100}
 
--- Статичні розміри відступів графіку
+-- Static graph padding sizes
 local PAD_LEFT   = Size.padding.large * 5
 local PAD_RIGHT  = Size.padding.large * 2
 local PAD_TOP    = Size.padding.large * 2
@@ -38,8 +38,8 @@ local CanvasWidget = Widget:extend{
 
 local function drawLine(bb, x0, y0, x1, y1, thickness, color)
     local offset = math_floor(thickness / 2)
-    
-    -- Fast-path для горизонтальних та вертикальних ліній
+
+    -- Fast path for horizontal and vertical lines
     if y0 == y1 then
         local x = math_min(x0, x1)
         local w = math_abs(x1 - x0) + thickness
@@ -83,14 +83,14 @@ function CanvasWidget:paintTo(bb, x, y)
     local graph_w = w - PAD_LEFT - PAD_RIGHT
     local graph_h = h - PAD_TOP - PAD_BOTTOM
 
-    -- Сітка
+    -- Grid
     for i = 1, #PCT_LEVELS do
         local pct = PCT_LEVELS[i]
         local py = graph_y + graph_h - math_floor((pct / 100) * graph_h)
         drawDashedLine(bb, graph_x, py, graph_x + graph_w, Blitbuffer.COLOR_DARK_GRAY)
     end
 
-    -- Осі
+    -- Axes
     bb:paintRect(graph_x, graph_y + graph_h, graph_w, 2, Blitbuffer.COLOR_BLACK)
     bb:paintRect(graph_x, graph_y, 2, graph_h + 2, Blitbuffer.COLOR_BLACK)
 
@@ -111,7 +111,7 @@ function CanvasWidget:paintTo(bb, x, y)
         local px = graph_x + INNER_PAD + DOT_MARGIN + math_floor((history.ts[i] - min_ts) * ts_scale)
         local py = graph_y + graph_h - math_floor(history.capacity[i] * cap_scale)
 
-        -- Зарядка — сірий, розрядка — чорний
+        -- Charging — gray, discharging — black
         local dot_color = history.is_charging[i] and Blitbuffer.COLOR_GRAY or Blitbuffer.COLOR_BLACK
         if prev_x and prev_y then
             local line_color = prev_charging and Blitbuffer.COLOR_GRAY or Blitbuffer.COLOR_BLACK
@@ -131,10 +131,10 @@ local BatteryGraphWidget = FocusManager:extend{
     history         = {},
     view_mode       = "cycle",  -- "cycle" | "all"
     period_days     = 30,
-    on_mode_change  = nil,      -- callback(mode, period_days) — для збереження з main.lua
+    on_mode_change  = nil,      -- callback(mode, period_days) — for saving from main.lua
 }
 
--- Повертає відфільтровану копію history згідно з поточним режимом
+-- Returns a filtered copy of history according to the current mode
 function BatteryGraphWidget:getFilteredHistory()
     local history = self.history
     if not history or not history.ts or #history.ts == 0 then return {ts={}, capacity={}, is_charging={}} end
@@ -143,7 +143,7 @@ function BatteryGraphWidget:getFilteredHistory()
     local idx = 1
 
     if self.view_mode == "cycle" then
-        -- Знаходимо початок останньої сесії зарядки (перехід false → true)
+        -- Find the start of the last charging session (transition false → true)
         local start_idx = 1
         for i = #history.ts, 2, -1 do
             if history.is_charging[i] and not history.is_charging[i-1] then
@@ -158,7 +158,7 @@ function BatteryGraphWidget:getFilteredHistory()
             idx = idx + 1
         end
     else
-        -- Відображаємо дані за останні N днів
+        -- Show data for the last N days
         local cutoff = os.time() - self.period_days * 24 * 3600
         local start_idx = 1
         for i = 1, #history.ts do
@@ -178,7 +178,7 @@ function BatteryGraphWidget:getFilteredHistory()
     return filtered
 end
 
--- Формує рядок заголовку із зазначенням активного режиму
+-- Builds the title string showing the active mode
 function BatteryGraphWidget:getModeTitle()
     if self.view_mode == "cycle" then
         return _("Battery Graph") .. "  [" .. _("Current cycle") .. "]"
@@ -187,7 +187,7 @@ function BatteryGraphWidget:getModeTitle()
     end
 end
 
--- Показує діалог вибору режиму відображення
+-- Shows the display mode selection dialog
 function BatteryGraphWidget:showViewMenu()
     local UIManager = require("ui/uimanager")
     local vm  = self.view_mode
@@ -247,26 +247,27 @@ function BatteryGraphWidget:showViewMenu()
     UIManager:show(dialog)
 end
 
--- Закриває поточний віджет і через scheduleIn(0) відкриває новий.
--- scheduleIn(0) гарантує, що поточна тап-подія повністю оброблена до появи
--- нового віджету — інакше тап «долітав» би до onTap нового віджету і одразу
--- його закривав, тому здавалося що вибір режиму не працює.
+-- Closes the current widget and, via scheduleIn(0), opens a new one.
+-- scheduleIn(0) ensures the current tap event is fully processed before the
+-- new widget appears — otherwise the tap would "reach" the new widget's
+-- onTap and immediately close it, making it seem like mode selection
+-- wasn't working.
 function BatteryGraphWidget:switchMode(mode, period)
     local UIManager = require("ui/uimanager")
     local new_period = period or 30
 
-    -- Зберігаємо вибір через зовнішній callback (main.lua)
+    -- Persist the choice via an external callback (main.lua)
     if self.on_mode_change then
         self.on_mode_change(mode, new_period)
     end
 
-    -- Зберігаємо посилання до закриття self
+    -- Save references before closing self
     local history        = self.history
     local on_mode_change = self.on_mode_change
 
     UIManager:close(self)
 
-    -- Відкладаємо показ нового віджету на наступну ітерацію event-loop
+    -- Defer showing the new widget to the next event-loop iteration
     UIManager:scheduleIn(0, function()
         UIManager:show(BatteryGraphWidget:new{
             history        = history,
