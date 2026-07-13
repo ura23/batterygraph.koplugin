@@ -8,7 +8,7 @@ local _ = require("gettext")
 
 local BatteryGraph = WidgetContainer:extend{
     name = "batterygraph",
-    title = _("Battery graph"),
+    title = _("Battery Graph"),
     settings_file = DataStorage:getSettingsDir() .. "/battery_graph.lua",
 }
 
@@ -18,7 +18,7 @@ function BatteryGraph:init()
     self.settings = LuaSettings:open(self.settings_file)
     self.history = self.settings:readSetting("history") or {ts={}, capacity={}, is_charging={}}
 
-    -- Затираємо старі дані (якщо це формат масиву таблиць)
+    -- Clear old data (if it's the array-of-tables format)
     if self.history[1] then
         self.history = {ts={}, capacity={}, is_charging={}}
         self:saveHistory(true)
@@ -113,6 +113,7 @@ end
 function BatteryGraph:addToMainMenu(menu_items)
     menu_items.battery_graph = {
         text = self.title,
+        sorting_hint = "tools", -- ADDED: registers the plugin in the main "Tools" menu
         keep_menu_open = false,
         callback = function()
             self:onShowBatteryGraph()
@@ -123,7 +124,7 @@ end
 function BatteryGraph:onShowBatteryGraph()
     self:recordPoint()
 
-    -- Читаємо збережений режим відображення (зберігається в тому ж файлі налаштувань)
+    -- Read the saved display mode (stored in the same settings file)
     local view_mode   = self.settings:readSetting("view_mode")   or "cycle"
     local period_days = self.settings:readSetting("period_days") or 30
 
@@ -132,7 +133,7 @@ function BatteryGraph:onShowBatteryGraph()
         history        = self.history,
         view_mode      = view_mode,
         period_days    = period_days,
-        -- Callback викликається при кожній зміні режиму: зберігає вибір на диск
+        -- Invoked on every mode change: persists the choice to disk
         on_mode_change = function(mode, period)
             self.settings:saveSetting("view_mode", mode)
             self.settings:saveSetting("period_days", period)
