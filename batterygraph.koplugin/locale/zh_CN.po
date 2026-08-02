@@ -1,0 +1,31 @@
+# Chinese (Simplified) translation for Battery Graph.
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: zh_CN\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Графік батареї"
+msgstr "电池图表"
+
+msgid "Поточний цикл"
+msgstr "当前周期"
+
+msgid " днів"
+msgstr " 天"
+
+msgid "Режим відображення"
+msgstr "显示模式"
+
+msgid "30 днів"
+msgstr "30 天"
+
+msgid "90 днів"
+msgstr "90 天"
+
+msgid "180 днів"
+msgstr "180 天"
+
+msgid "365 днів"
+msgstr "365 天"
+

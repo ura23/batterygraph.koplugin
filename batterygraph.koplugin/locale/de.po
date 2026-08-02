@@ -1,0 +1,31 @@
+# German translation for Battery Graph.
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: de\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Графік батареї"
+msgstr "Akku-Diagramm"
+
+msgid "Поточний цикл"
+msgstr "Aktueller Zyklus"
+
+msgid " днів"
+msgstr " Tage"
+
+msgid "Режим відображення"
+msgstr "Anzeigemodus"
+
+msgid "30 днів"
+msgstr "30 Tage"
+
+msgid "90 днів"
+msgstr "90 Tage"
+
+msgid "180 днів"
+msgstr "180 Tage"
+
+msgid "365 днів"
+msgstr "365 Tage"
+

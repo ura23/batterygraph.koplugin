@@ -11,7 +11,7 @@ local VerticalGroup = require("ui/widget/verticalgroup")
 local OverlapGroup = require("ui/widget/overlapgroup")
 local TextWidget = require("ui/widget/textwidget")
 local Font = require("ui/font")
-local _ = require("gettext")
+local _ = require("batterygraph_i18n").translate
 local Screen = Device.screen
 
 -- КЕШУВАННЯ ФУНКЦІЙ ДЛЯ ПРИСКОРЕННЯ (Upvalues)
@@ -199,7 +199,7 @@ function BatteryGraphWidget:showViewMenu()
     end
 
     dialog = ButtonDialogTitle:new{
-        title = _("Display mode"),
+        title = _("Режим відображення"),
         buttons = {
             {
                 {
