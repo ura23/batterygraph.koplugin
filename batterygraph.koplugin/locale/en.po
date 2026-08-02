@@ -1,0 +1,31 @@
+# English translation for Battery Graph.
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: en\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Графік батареї"
+msgstr "Battery Graph"
+
+msgid "Поточний цикл"
+msgstr "Current cycle"
+
+msgid " днів"
+msgstr " days"
+
+msgid "Режим відображення"
+msgstr "Display mode"
+
+msgid "30 днів"
+msgstr "30 days"
+
+msgid "90 днів"
+msgstr "90 days"
+
+msgid "180 днів"
+msgstr "180 days"
+
+msgid "365 днів"
+msgstr "365 days"
+

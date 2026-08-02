@@ -1,0 +1,31 @@
+# Armenian translation for Battery Graph.
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: hy\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Графік батареї"
+msgstr "Մարտկոցի գրաֆիկ"
+
+msgid "Поточний цикл"
+msgstr "Ընթացիկ ցիկլ"
+
+msgid " днів"
+msgstr " օր"
+
+msgid "Режим відображення"
+msgstr "Ցուցադրման ռեժիմ"
+
+msgid "30 днів"
+msgstr "30 օր"
+
+msgid "90 днів"
+msgstr "90 օր"
+
+msgid "180 днів"
+msgstr "180 օր"
+
+msgid "365 днів"
+msgstr "365 օր"
+

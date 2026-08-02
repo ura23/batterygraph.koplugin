@@ -1,0 +1,33 @@
+# Ukrainian translation for Battery Graph.
+# Dormant while the source msgids are Ukrainian; becomes active
+# if the sources are ever switched to English msgids.
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: uk\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+msgid "Battery Graph"
+msgstr "Графік батареї"
+
+msgid "Current cycle"
+msgstr "Поточний цикл"
+
+msgid " days"
+msgstr " днів"
+
+msgid "Display mode"
+msgstr "Режим відображення"
+
+msgid "30 days"
+msgstr "30 днів"
+
+msgid "90 days"
+msgstr "90 днів"
+
+msgid "180 days"
+msgstr "180 днів"
+
+msgid "365 days"
+msgstr "365 днів"
+

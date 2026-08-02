@@ -4,11 +4,11 @@ local LuaSettings = require("luasettings")
 local PowerD = require("device"):getPowerDevice()
 local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
-local _ = require("gettext")
+local _ = require("batterygraph_i18n").translate
 
 local BatteryGraph = WidgetContainer:extend{
     name = "batterygraph",
-    title = _("Battery Graph"),
+    title = _("Графік батареї"),
     settings_file = DataStorage:getSettingsDir() .. "/battery_graph.lua",
 }
 
