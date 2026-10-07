@@ -1,6 +1,7 @@
+-- v1.0: localized metadata via batterygraph_i18n; fixed stray quote in description.
+local tr = require("batterygraph_i18n").tr
 return {
-    name = "batterygraph",
-    description = _("Display battery usage history graph"),
-    version = "1.0",
-    author = "Antigravity",
+    fullname = tr("Battery graph", "Графік батареї"),
+    description = tr("Shows a battery discharge/charge graph over time.",
+                     "Відображає графік розряду та заряджання батареї в часі."),
 }
