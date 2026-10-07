@@ -10,6 +10,9 @@ BatteryGraph is a lightweight, highly optimized plugin for [KOReader](https://gi
 - **Energy Efficient**: It doesn't waste your battery to track your battery! The plugin only writes to the database when a physical change occurs (e.g., capacity drops by 1% or the charger is plugged/unplugged), keeping background activity and disk I/O to an absolute minimum.
 - **Flexible View Modes**: View your battery curve for the **Current Cycle** (since last charge), or look back over **30, 90, 180, or 365 days**.
 - **Smooth Interpolation**: The graph smartly interpolates the battery discharge rate to the current moment, providing a smooth, realistic discharge curve rather than jagged artificial steps.
+- **12/24-Hour Clock**: Times follow KOReader's global **12-hour clock** setting, and the graph's menu offers a quick toggle for it.
+- **Turning-Point Timestamps**: Charge/discharge turning points (local peaks and valleys) are marked with a dashed guide and a date/time label, so you can see exactly when charging started or stopped.
+- **Localization**: All user-facing text is translated, with **English** and **Ukrainian** supported.
 
 ## Installation
 
