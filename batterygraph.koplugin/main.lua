@@ -1,14 +1,16 @@
+-- v1.0: Localized plugin title/metadata via batterygraph_i18n (en/uk).
+-- Data recording and menu wiring are unchanged.
 local DataStorage = require("datastorage")
 local Dispatcher = require("dispatcher")
 local LuaSettings = require("luasettings")
 local PowerD = require("device"):getPowerDevice()
 local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
-local _ = require("gettext")
+local tr = require("batterygraph_i18n").tr
 
 local BatteryGraph = WidgetContainer:extend{
     name = "batterygraph",
-    title = _("Battery Graph"),
+    title = tr("Battery graph", "Графік батареї"),
     settings_file = DataStorage:getSettingsDir() .. "/battery_graph.lua",
 }
 
@@ -18,7 +20,7 @@ function BatteryGraph:init()
     self.settings = LuaSettings:open(self.settings_file)
     self.history = self.settings:readSetting("history") or {ts={}, capacity={}, is_charging={}}
 
-    -- Clear old data (if it's the array-of-tables format)
+    -- Затираємо старі дані (якщо це формат масиву таблиць)
     if self.history[1] then
         self.history = {ts={}, capacity={}, is_charging={}}
         self:saveHistory(true)
@@ -111,9 +113,26 @@ function BatteryGraph:onDispatcherRegisterActions()
 end
 
 function BatteryGraph:addToMainMenu(menu_items)
+    local ok_ro, order = pcall(require, "ui/elements/reader_menu_order")
+    if ok_ro and order and order.more_tools then
+        local found = false
+        for _, id in ipairs(order.more_tools) do
+            if id == "battery_graph" then found = true; break end
+        end
+        if not found then table.insert(order.more_tools, "battery_graph") end
+    end
+    local ok_fo, fm_order = pcall(require, "ui/elements/filemanager_menu_order")
+    if ok_fo and fm_order and fm_order.more_tools then
+        local found = false
+        for _, id in ipairs(fm_order.more_tools) do
+            if id == "battery_graph" then found = true; break end
+        end
+        if not found then table.insert(fm_order.more_tools, "battery_graph") end
+    end
+
     menu_items.battery_graph = {
         text = self.title,
-        sorting_hint = "tools", -- ADDED: registers the plugin in the main "Tools" menu
+        -- sorting_hint замінено на явне додавання в reader_menu_order та filemanager_menu_order
         keep_menu_open = false,
         callback = function()
             self:onShowBatteryGraph()
@@ -124,7 +143,7 @@ end
 function BatteryGraph:onShowBatteryGraph()
     self:recordPoint()
 
-    -- Read the saved display mode (stored in the same settings file)
+    -- Читаємо збережений режим відображення (зберігається в тому ж файлі налаштувань)
     local view_mode   = self.settings:readSetting("view_mode")   or "cycle"
     local period_days = self.settings:readSetting("period_days") or 30
 
@@ -133,7 +152,7 @@ function BatteryGraph:onShowBatteryGraph()
         history        = self.history,
         view_mode      = view_mode,
         period_days    = period_days,
-        -- Invoked on every mode change: persists the choice to disk
+        -- Callback викликається при кожній зміні режиму: зберігає вибір на диск
         on_mode_change = function(mode, period)
             self.settings:saveSetting("view_mode", mode)
             self.settings:saveSetting("period_days", period)
