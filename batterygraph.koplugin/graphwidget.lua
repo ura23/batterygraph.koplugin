@@ -1,5 +1,9 @@
+-- v1.0: 12/24-hour clock support (global twelve_hour_clock setting + toggle in the
+--       display-mode dialog), time labels and dashed guides at charge-state turning
+--       points, and en/uk localization via batterygraph_i18n.
 local Blitbuffer = require("ffi/blitbuffer")
 local ButtonDialogTitle = require("ui/widget/buttondialogtitle")
+local datetime = require("datetime")
 local Device = require("device")
 local FocusManager = require("ui/widget/focusmanager")
 local FrameContainer = require("ui/widget/container/framecontainer")
@@ -7,18 +11,23 @@ local Geom = require("ui/geometry")
 local TitleBar = require("ui/widget/titlebar")
 local Widget = require("ui/widget/widget")
 local Size = require("ui/size")
+local T = require("ffi/util").template
 local VerticalGroup = require("ui/widget/verticalgroup")
 local OverlapGroup = require("ui/widget/overlapgroup")
 local TextWidget = require("ui/widget/textwidget")
 local Font = require("ui/font")
-local _ = require("gettext")
+local tr = require("batterygraph_i18n").tr
 local Screen = Device.screen
 
 -- КЕШУВАННЯ ФУНКЦІЙ ДЛЯ ПРИСКОРЕННЯ (Upvalues)
 local math_abs = math.abs
 local math_floor = math.floor
+local math_max = math.max
 local math_min = math.min
 local os_date = os.date
+
+-- Максимум підписів біля точок перегину (щоб не захаращувати графік).
+local MAX_TURNING_LABELS = 20
 
 -- Статичні рівні сітки
 local PCT_LEVELS = {25, 50, 75, 100}
@@ -31,9 +40,21 @@ local PAD_BOTTOM = Size.padding.large * 4
 local INNER_PAD  = Size.padding.default
 local DOT_MARGIN = Size.padding.large
 
+-- true, якщо ввімкнено глобальний 12-годинний формат KOReader.
+local function is_twelve_hour()
+    return G_reader_settings and G_reader_settings:isTrue("twelve_hour_clock")
+end
+
+-- Формат дати й часу з урахуванням 12/24-годинного формату.
+local function formatDateTime(ts)
+    return os_date("%d.%m", ts) .. " " .. datetime.secondsToHour(ts, is_twelve_hour())
+end
+
 local CanvasWidget = Widget:extend{
     history = {},
     dimen   = nil,
+    -- X-координати вертикальних пунктирів у точках перегину (заповнює battery graph).
+    turning_x = {},
 }
 
 local function drawLine(bb, x0, y0, x1, y1, thickness, color)
@@ -73,6 +94,14 @@ local function drawDashedLine(bb, x0, y, x1, color)
     end
 end
 
+-- Вертикальний пунктир (для позначок точок перегину).
+local function drawDashedVLine(bb, x, y0, y1, color)
+    for i = y0, y1, 10 do
+        local h = math_min(4, y1 - i)
+        if h > 0 then bb:paintRect(x, i, 1, h, color) end
+    end
+end
+
 function CanvasWidget:paintTo(bb, x, y)
     local w = self.dimen.w
     local h = self.dimen.h
@@ -93,6 +122,13 @@ function CanvasWidget:paintTo(bb, x, y)
     -- Осі
     bb:paintRect(graph_x, graph_y + graph_h, graph_w, 2, Blitbuffer.COLOR_BLACK)
     bb:paintRect(graph_x, graph_y, 2, graph_h + 2, Blitbuffer.COLOR_BLACK)
+
+    -- Вертикальні пунктири в точках перегину (під даними, щоб не перекривати лінію).
+    if self.turning_x then
+        for i = 1, #self.turning_x do
+            drawDashedVLine(bb, self.turning_x[i], graph_y, graph_y + graph_h, Blitbuffer.COLOR_DARK_GRAY)
+        end
+    end
 
     local history = self.history
     if not history or not history.ts or #history.ts < 2 then return end
@@ -180,10 +216,11 @@ end
 
 -- Формує рядок заголовку із зазначенням активного режиму
 function BatteryGraphWidget:getModeTitle()
+    local title = tr("Battery graph", "Графік батареї")
     if self.view_mode == "cycle" then
-        return _("Графік батареї") .. "  [" .. _("Поточний цикл") .. "]"
+        return title .. "  [" .. tr("Current cycle", "Поточний цикл") .. "]"
     else
-        return _("Графік батареї") .. "  [" .. self.period_days .. _(" днів") .. "]"
+        return title .. "  [" .. T(tr("%1 days", "%1 днів"), self.period_days) .. "]"
     end
 end
 
@@ -198,12 +235,16 @@ function BatteryGraphWidget:showViewMenu()
         return active and "✓ " or ""
     end
 
+    local function days_label(days)
+        return T(tr("%1 days", "%1 днів"), days)
+    end
+
     dialog = ButtonDialogTitle:new{
-        title = _("Display mode"),
+        title = tr("Display mode", "Режим відображення"),
         buttons = {
             {
                 {
-                    text = mark(vm == "cycle") .. _("Поточний цикл"),
+                    text = mark(vm == "cycle") .. tr("Current cycle", "Поточний цикл"),
                     callback = function()
                         UIManager:close(dialog)
                         self:switchMode("cycle", nil)
@@ -212,14 +253,14 @@ function BatteryGraphWidget:showViewMenu()
             },
             {
                 {
-                    text = mark(vm == "all" and pd == 30) .. _("30 днів"),
+                    text = mark(vm == "all" and pd == 30) .. days_label(30),
                     callback = function()
                         UIManager:close(dialog)
                         self:switchMode("all", 30)
                     end,
                 },
                 {
-                    text = mark(vm == "all" and pd == 90) .. _("90 днів"),
+                    text = mark(vm == "all" and pd == 90) .. days_label(90),
                     callback = function()
                         UIManager:close(dialog)
                         self:switchMode("all", 90)
@@ -228,17 +269,35 @@ function BatteryGraphWidget:showViewMenu()
             },
             {
                 {
-                    text = mark(vm == "all" and pd == 180) .. _("180 днів"),
+                    text = mark(vm == "all" and pd == 180) .. days_label(180),
                     callback = function()
                         UIManager:close(dialog)
                         self:switchMode("all", 180)
                     end,
                 },
                 {
-                    text = mark(vm == "all" and pd == 365) .. _("365 днів"),
+                    text = mark(vm == "all" and pd == 365) .. days_label(365),
                     callback = function()
                         UIManager:close(dialog)
                         self:switchMode("all", 365)
+                    end,
+                },
+            },
+            {
+                {
+                    -- Перемикач глобального 12-годинного формату KOReader.
+                    text = mark(is_twelve_hour()) .. tr("12-hour clock", "12-годинний формат"),
+                    callback = function()
+                        UIManager:close(dialog)
+                        G_reader_settings:flipNilOrFalse("twelve_hour_clock")
+                        pcall(function()
+                            local Event = require("ui/event")
+                            UIManager:broadcastEvent(Event:new("TimeFormatChanged"))
+                        end)
+                        self:updateLayout()
+                        UIManager:setDirty(self, function()
+                            return "ui", self.dimen
+                        end)
                     end,
                 },
             },
@@ -270,6 +329,84 @@ function BatteryGraphWidget:switchMode(mode, period)
     end)
 end
 
+-- Збирає позначки точок перегину (зміна стану заряджання) і розміщує підписи з
+-- часом, уникаючи накладання. Повертає список { line_x, label, x, y }.
+function BatteryGraphWidget:buildTurningAnnotations(history, graph_x, graph_y, graph_w, graph_h, face)
+    local annotations = {}
+    if not history or not history.ts or #history.ts < 3 then return annotations end
+
+    local min_ts = history.ts[1]
+    local max_ts = history.ts[#history.ts]
+    if max_ts == min_ts then max_ts = min_ts + 1 end
+
+    local draw_w    = graph_w - 2 * INNER_PAD - 2 * DOT_MARGIN
+    local ts_scale  = draw_w / (max_ts - min_ts)
+    local cap_scale = graph_h / 100
+    local gap       = Size.padding.small
+
+    -- Найширший можливий підпис, щоб заздалегідь зарезервувати місце.
+    local probe = TextWidget:new{
+        text = is_twelve_hour() and "00.00 12:00 PM" or "00.00 00:00",
+        face = face, padding = 0,
+    }
+    local probe_w = probe:getWidth()
+    local probe_h = probe:getSize().h
+    probe:free()
+
+    local max_label_y = graph_y + graph_h - probe_h
+    if max_label_y < 0 then max_label_y = 0 end
+
+    local placed = {}
+    local function overlaps(x, y)
+        for i = 1, #placed do
+            local r = placed[i]
+            if x < r.x + r.w and x + r.w > r.x and y < r.y + r.h and y + r.h > r.y then
+                return true
+            end
+        end
+        return false
+    end
+
+    -- Від найновіших до найстаріших, щоб за обмеженого бюджету лишалися свіжіші точки.
+    for i = #history.ts, 2, -1 do
+        if #annotations >= MAX_TURNING_LABELS then break end
+        if history.is_charging[i] ~= history.is_charging[i - 1] then
+            local ts = history.ts[i]
+            local line_x = graph_x + INNER_PAD + DOT_MARGIN + math_floor((ts - min_ts) * ts_scale)
+            local point_y = graph_y + graph_h - math_floor(history.capacity[i] * cap_scale)
+            local is_peak = not history.is_charging[i] -- заряджання спинилося: локальний максимум
+
+            local anchor_x = math_max(0, math_min(line_x - math_floor(probe_w / 2), self.dimen.w - probe_w))
+            local base_y = is_peak and (point_y - probe_h - gap) or (point_y + gap)
+            local step = probe_h + 2
+
+            local chosen_y
+            for _, k in ipairs({0, 1, -1, 2, -2, 3, -3}) do
+                local ly = math_max(0, math_min(base_y + k * step, max_label_y))
+                if not overlaps(anchor_x, ly) then
+                    chosen_y = ly
+                    break
+                end
+            end
+
+            if chosen_y then
+                placed[#placed + 1] = {x = anchor_x, y = chosen_y, w = probe_w, h = probe_h}
+                local label = TextWidget:new{text = formatDateTime(ts), face = face, padding = 0}
+                local lw = label:getWidth()
+                local lx = math_max(0, math_min(line_x - math_floor(lw / 2), self.dimen.w - lw))
+                annotations[#annotations + 1] = {
+                    line_x = line_x,
+                    label  = label,
+                    x      = lx,
+                    y      = chosen_y,
+                }
+            end
+        end
+    end
+
+    return annotations
+end
+
 function BatteryGraphWidget:updateLayout()
     if self.title_bar then
         self.title_bar:setTitle(self:getModeTitle())
@@ -284,6 +421,7 @@ function BatteryGraphWidget:updateLayout()
     local graph_h = canvas_h - PAD_TOP - PAD_BOTTOM
 
     local font_face = Font:getFace("cfont", 16)
+    local small_face = Font:getFace("cfont", 14)
     local text_100 = TextWidget:new{text = "100%", face = font_face, padding = 0}
     local text_75  = TextWidget:new{text = " 75%", face = font_face, padding = 0}
     local text_50  = TextWidget:new{text = " 50%", face = font_face, padding = 0}
@@ -292,18 +430,28 @@ function BatteryGraphWidget:updateLayout()
 
     local min_time_str, max_time_str = "", ""
     if filtered_history and filtered_history.ts and #filtered_history.ts >= 2 then
-        min_time_str = os_date("%d.%m %H:%M", filtered_history.ts[1])
-        max_time_str = os_date("%d.%m %H:%M", filtered_history.ts[#filtered_history.ts])
+        min_time_str = formatDateTime(filtered_history.ts[1])
+        max_time_str = formatDateTime(filtered_history.ts[#filtered_history.ts])
     end
 
     local text_start = TextWidget:new{text = min_time_str, face = font_face, padding = 0}
     local text_end   = TextWidget:new{text = max_time_str, face = font_face, padding = 0}
 
-    local canvas_with_labels = OverlapGroup:new{
+    -- Позначки точок перегину з підписами часу.
+    local annotations = self:buildTurningAnnotations(
+        filtered_history, graph_x, graph_y, graph_w, graph_h, small_face)
+
+    local turning_x = {}
+    for i = 1, #annotations do
+        turning_x[i] = annotations[i].line_x
+    end
+
+    local children = {
         dimen = Geom:new{w = self.dimen.w, h = canvas_h},
         CanvasWidget:new{
-            dimen   = Geom:new{w = self.dimen.w, h = canvas_h},
-            history = filtered_history,
+            dimen     = Geom:new{w = self.dimen.w, h = canvas_h},
+            history   = filtered_history,
+            turning_x = turning_x,
         },
         FrameContainer:new{
             padding = 0, bordersize = 0, margin = 0,
@@ -341,6 +489,17 @@ function BatteryGraphWidget:updateLayout()
             text_end,
         },
     }
+
+    for i = 1, #annotations do
+        local a = annotations[i]
+        children[#children + 1] = FrameContainer:new{
+            padding = 0, bordersize = 0, margin = 0,
+            overlap_offset = {a.x, a.y},
+            a.label,
+        }
+    end
+
+    local canvas_with_labels = OverlapGroup:new(children)
 
     self[1] = FrameContainer:new{
         height     = self.dimen.h,
